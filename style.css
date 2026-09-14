@@ -14,71 +14,66 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: "publico-text", "Publico Text", serif;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
 main {
-  width: min(70rem, calc(100% - 3rem));
+  width: min(42rem, calc(100% - 3rem));
   margin: 0 auto;
   padding: 3rem 0;
 }
 
-h1,
-h2 {
-  font-weight: 400;
+header {
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--line);
 }
 
 h1 {
   margin: 0;
   font-size: 1.5rem;
+  font-weight: 400;
 }
 
-section {
-  padding: 3rem 0;
+.eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+nav {
+  display: grid;
+}
+
+a {
+  padding: 1.5rem 0;
   border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+  text-decoration: none;
 }
 
-section:last-child {
-  border-bottom: 0;
-}
-
-h2 {
-  margin: 0 0 1.25rem;
+a span {
+  display: block;
+  color: var(--ink);
   font-size: 1.1rem;
 }
 
-.image-pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+a:hover span,
+a:focus-visible span {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
-figure {
-  margin: 0;
-}
-
-img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.gif {
-  width: min(100%, 32rem);
+a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 0.25rem;
 }
 
 @media (max-width: 600px) {
   main {
-    width: min(100% - 2rem, 70rem);
+    width: min(100% - 2rem, 42rem);
     padding-top: 2rem;
-  }
-
-  section {
-    padding: 2rem 0;
-  }
-
-  .image-pair {
-    grid-template-columns: 1fr;
   }
 }

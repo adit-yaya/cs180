@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Project 1: Images of the Russian Empire</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Images of the Russian Empire</h1>
+        <p>Colorizing the Prokudin-Gorskii photo collection</p>
+      </header>
+
+      <section>
+        <h2>Single-Scale Alignment</h2>
+        <p> Before attempting any alignment of images, I first crop out the borders of images 
+          by trimming off 15% from each side of the height and width. This helps remove any artifacts and ensures
+           that the alignment is performed only on the actual image content. 
+           <br><br>
+           For the single-scale alignment, I wrote the method align_single_scale. 
+           This method starts by cropping the image again based on the maximum possible range of displacements I search over. 
+           Since np.roll does a circular shift and wraps pixels around instead of trimming them off edges,
+           the wraparound can lead to inflated error measurements. To combat this, I decide to only look at the 
+           interior of the image when measuring alignment quality. So for example, if my maximum possible vertical displacement 
+           is 15 pixels, then I crop off the top and bottom 15 pixels before evaluating alignment. 
+          <br><br>
+          Next, I iterate over all possible displacements by taking the Cartesian product of the range (low, high+1) with itself.
+          I shift the image according to the selected displacement with np.roll, then evaluate the error using either Euclidean distance or Normalized Cross-Correlation, which 
+          I implemented separately in their own methods euclidean and ncc. If I find that a certain displacement 
+          scores better than the previously tracked best displacement, I update my stored best score and log the new best displacement.
+          Once I've iterated over all possible displacements, I return the highest-scoring shifted image and the displacement that produced it. 
+          This is repeated for both the green and red channel images against the blue channel image. 
+
+        </p>
+
+        <div class="image-grid">
+          <figure>
+            <img
+              src="../outputs/single_scale/ncc/cathedral_(2,%205)_(3,%2012).jpg"
+            >
+            <figcaption>
+              <span>Cathedral</span>
+              Green: (2, 5); Red: (3, 12)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/single_scale/ncc/monastery_(2,%20-3)_(2,%203).jpg"
+            >
+            <figcaption>
+              <span>Monastery</span>
+              Green: (2, -3); Red: (2, 3)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/single_scale/ncc/tobolsk_(3,%203)_(3,%207).jpg"
+            >
+            <figcaption>
+              <span>Tobolsk</span>
+              Green: (3, 3); Red: (3, 7)
+            </figcaption>
+          </figure>
+        </div>
+
+        <p>For the actual parameters I used, I searched a displacement window of [-30, 30], in both the horizontal and vertical directions.
+          I also used NCC as my alignment metric, but in the single-scale case, I found that NCC and Euclidean distance gave me the exact same results.
+          <br><br>
+          An issue I ran into when implementing the single-scale alignment was that I confused the ordering of x and y at first.
+          I'm used to (x, y) coordinate systems, but with NumPy images, we have (height, width), so I was originally shifting all my images backwards. 
+          Once I realized and fixed this, I found that the system worked very well and rather quickly. 
+        </p>
+      </section>
+
+      <section>
+        <h2>Multi-Scale Pyramid Alignment</h2>
+        <p>On the larger TIFF images, it is infeasible to use the single-scale alignment approach. Since they 
+          are much higher resolution, the space of displacements to search over must be much larger in order to
+          get reasonable results. However, this becomes prohibitively expensive to compute. 
+          To combat this, we use a multi-scale alignment approach, which uses an image pyramid approach to get 
+          progressively finer and finer approximations of the optimal displacement. 
+          <br><br>
+          I implemented this with a Gaussian Pyramid and a recursive align_multi_scale method. 
+
+          For the Gaussian Pyramid, I wrote a method gauss_pyr_downscale that first calculates a Gaussian kernel based on
+          a user-selected sigma value, applies the filter, and then downscales the image by half. First, the method
+          decides on the size of the Gaussian kernel. The suggestion from lecture was to make the half-width of the kernel
+          equal to 3 * the standard deviation, which I followed in my implementation. I make sure to round up the size to an 
+          odd number so that there is a defined center pixel. I then populate this filter matrix with proper Gaussian kernel 
+          values following the Gaussian distribution PDF formula, and finally normalize so that all the values in the matrix 
+          sum to 1. Once the kernel is defined, I use OpenCV's filter method (filter2D) and skimages rescale method, which was 
+          suggested in the starter code, to apply the Gaussian blur and downscale the image. The reason we apply the Gaussian blur
+          before downscaling is to help prevent aliasing. The blur acts as a low-pass filter, which removes the high frequency 
+          textures that might masquerade as lower frequency artifacts after our resampling operation. This makes sure that we are
+          evaluating potential displacements on an image that is still relatively clean.
+        </p>
+        <p>The multi-scale alignment works by calculating a single-scale alignment on a very downscaled version of the starting image,
+          then starting from that displacement at higher resolutions and making smaller refinements. As a base case, I check whether
+          the image height or width is less than some threshold. If so, then I use and return align_single_scale. Otherwise, I start by using my
+          gaussian pyramid method to downscale the image. Then, I recursively call align_multi_scale on this downsampled version.
+          I store the result it gives me and multiply it by 2 to account for the resolution increase, then I shift my current highres image according
+          to those values. After that, I perform a single-scale alignment on this estimated alignment with a search window of [-delta, delta] to make
+          any possible improvements. One note here is that I adjust the padding to incorporate the low-res coarse estimated shift, since large shifts
+          might lead to a lot of wrap around that I would like to disregard. Finally, I combine my coarse shift estimate with my fine adjustment
+          and return the final shifted image and optimal displacement, either to be used at a lower level of my recursive pyramid or as my final estimate.
+        </p>
+        <p>For specific parameters used, I chose to use a lowres threshold of 256, a delta of 8, single-scale alignment window of [-30, 30], and NCC as my alignment metric. 
+          See the bottom of the site for an explanation why I chose to use NCC instead of Euclidean distance.
+        </p>
+
+        <div class="image-grid multi-scale-grid">
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/cathedral_(2,%205)_(3,%2012).jpg"
+            >
+            <figcaption>
+              <span>Cathedral</span>
+              Green: (2, 5); Red: (3, 12)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/church_(4,%2025)_(-4,%2058).jpg"
+            >
+            <figcaption>
+              <span>Church</span>
+              Green: (4, 25); Red: (-4, 58)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/emir_(24,%2049)_(-474,%20-304).jpg"
+            >
+            <figcaption>
+              <span>Emir (see below for corrected final result)</span>
+              Green: (24, 49); Red: (-474, -304)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/harvesters_(17,%2059)_(14,%20124).jpg"
+            >
+            <figcaption>
+              <span>Harvesters</span>
+              Green: (17, 59); Red: (14, 124)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/icon_(17,%2041)_(23,%2089).jpg"
+            >
+            <figcaption>
+              <span>Icon</span>
+              Green: (17, 41); Red: (23, 89)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/ilemselga_(7,%2040)_(11,%20131).jpg"
+            >
+            <figcaption>
+              <span>Ilemselga</span>
+              Green: (7, 40); Red: (11, 131)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/melons_(10,%2081)_(14,%20178).jpg"
+            >
+            <figcaption>
+              <span>Melons</span>
+              Green: (10, 81); Red: (14, 178)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/monastery_(2,%20-3)_(2,%203).jpg"
+            >
+            <figcaption>
+              <span>Monastery</span>
+              Green: (2, -3); Red: (2, 3)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/religous_painting_(3,%2028)_(7,%2069).jpg"
+            >
+            <figcaption>
+              <span>Religious Painting</span>
+              Green: (3, 28); Red: (7, 69)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/self_portrait_(29,%2078)_(37,%20176).jpg"
+            >
+            <figcaption>
+              <span>Self Portrait</span>
+              Green: (29, 78); Red: (37, 176)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/siren_(-6,%2049)_(-24,%2096).jpg"
+            >
+            <figcaption>
+              <span>Siren</span>
+              Green: (-6, 49); Red: (-24, 96)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/three_generations_(14,%2052)_(11,%20111).jpg"
+            >
+            <figcaption>
+              <span>Three Generations</span>
+              Green: (14, 52); Red: (11, 111)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/tobolsk_(3,%203)_(3,%207).jpg"
+            >
+            <figcaption>
+              <span>Tobolsk</span>
+              Green: (3, 3); Red: (3, 7)
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/ncc/wharf_(-7,%2015)_(-16,%2082).jpg"
+            >
+            <figcaption>
+              <span>Wharf</span>
+              Green: (-7, 15); Red: (-16, 82)
+            </figcaption>
+          </figure>
+        </div>
+
+        <p>Overall, on the assigned images, I found that my multi-scale method worked very well! One issue I ran into was that I 
+          forgot to combine the coarse shift estimate with the refinement before returning, which often led to my final result just being
+          the outcome of the last refinement over a window of [-delta, delta]. Some print statements helped me identify and correct the error. 
+
+          I also noticed that the Emir image was very difficult to align and often had some large errors with the Red channel. An explanation of this,
+          along with how I fixed the issue, is at the end of this section.
+        </p>
+
+        <div class="chosen-results">
+          <h3>Chosen Images</h3>
+          <p>I chose the additional images Lugano, Orangerie, and Vitebsk because I found them aesthetically pleasing and thought that 
+            they covered a wide range of color palettes. My existing implementation and parameters worked great for these images on the first try.
+          </p>
+
+          <div class="image-grid multi-scale-grid">
+            <figure>
+              <img
+                src="../outputs/multi_scale/ncc/lugano_(-16,%2041)_(-29,%2093).jpg"
+              >
+              <figcaption>
+                <span>Lugano</span>
+                Green: (-16, 41); Red: (-29, 93)
+              </figcaption>
+            </figure>
+
+            <figure>
+              <img
+                src="../outputs/multi_scale/ncc/orangerie_(28,%2059)_(34,%20126).jpg"
+              >
+              <figcaption>
+                <span>Orangerie</span>
+                Green: (28, 59); Red: (34, 126)
+              </figcaption>
+            </figure>
+
+            <figure>
+              <img
+                src="../outputs/multi_scale/ncc/vitebsk_(2,%2049)_(-5,%20108).jpg"
+              >
+              <figcaption>
+                <span>Vitebsk</span>
+                Green: (2, 49); Red: (-5, 108)
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="special-result">
+          <h3>Special Case: Emir of Bukhara</h3>
+          <p>As explained in the instructions, the Emir of Bukhara photograph was difficult to align because the 3
+            channel images have very different brightness values. I suspect this is partially because of the overall blue tone of his robes,
+            which, when combined with the finer details also on them, leads to large amount of errors with the Red channel. I also think the relatively
+            uniformity of the wall behind him could have a part to play. I did find that the Green image was aligned
+            properly very easily but the Red image often ended up displaced far too much with my algorithm. 
+            <br><br>
+            To fix this, I considered just setting some limit on the amount by which the Red channel could be shifted during the coarse low resolution 
+            displacement estimate, but I decided this would be hard to calibrate. Instead, I remembered from lecture that generally, humans perceive
+            Green and Red as closer than Red and Blue, and I also saw from inspecting the .Tiff that the Green and Red images were a lot more similar than the 
+            Red and Blue. As a result, specifically for the Emir image, I decided to align the Red image with the Green one rather than the Blue. 
+            Amazingly, I found that this worked on the first try! Here's the result:
+          </p>
+
+          <figure>
+            <img
+              src="../outputs/special_emir/ncc/emir_(24,%2049)_(41,%20106).jpg"
+            >
+            <figcaption>
+              <span>Emir, corrected alignment</span>
+              Green to blue: (24, 49); Red to green: (41, 106)
+            </figcaption>
+          </figure>
+
+          <p>I'm not sure why the assignment asked us to align with Blue as our reference image, since it seems to me like Green might actually be easier in general.
+            However, I'm glad I was able to come up with this workaround and get the Emir image aligned without any extra bells and whistles.
+          </p>
+        </div>
+
+        <div class="metric-comparison">
+          <h3>Why NCC Instead of Euclidean Distance?</h3>
+          <p>I decided to use Normalized Cross-Correlation instead of Euclidean distance for the multi-scale alignment. 
+            The first and most pertinent reason is that I started by calculating the multi-scale alignments with both alignment metrics, and I found 
+            that for many images, the Euclidean just did not work very well. I've attached the Church image as an example below. 
+
+            My theory for this is that when large parts of the image are pretty monochromatic, such as the water and the sky
+            here in the Church, one or two channels dominate and have very different values from the other(s), leading to large Euclidean distance values no matter what 
+            displacement is tested. Normalized cross-correlation instead compares the overall spatial patterning of the brightness in the image. This means that 
+            it is not influenced by the absolute color intensity values, but instead compares the relative brightness organization between images. Since bright and dark parts in the 
+            blue channel are likely to also be relatively brighter and darker in the red and green channels, simply due to the amount of light reflected and captured from those regions, NCC generally works better. 
+          </p>
+
+          <figure>
+            <img
+              src="../outputs/multi_scale/euclidean/church_(600,%2046)_(600,%2074).jpg"
+            >
+            <figcaption>
+              <span>Church, Euclidean distance</span>
+              Green: (600, 46); Red: (600, 74)
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
