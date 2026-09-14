@@ -12,7 +12,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: "publico-text", "Publico Text", serif;
+  font-family: "essay-text", serif;
   font-size: 16px;
   line-height: 1.5;
 }
