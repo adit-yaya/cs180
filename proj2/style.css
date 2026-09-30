@@ -1,0 +1,317 @@
+:root {
+  --paper: #edf2e5;
+  --ink: #28351f;
+  --ink-soft: #5a6652;
+  --line: rgba(40, 53, 31, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "essay-text", serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+main {
+  width: min(82rem, calc(100% - 3rem));
+  margin: 0 auto;
+  padding: 3rem 0;
+}
+
+header {
+  padding-bottom: 1px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 400;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+h2 {
+  margin: 0 0 1.25rem;
+  font-size: 1.1rem;
+}
+
+h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+
+h4 {
+  margin: 2.5rem 0 1rem;
+  font-size: 1rem;
+}
+
+p {
+  max-width: 62rem;
+}
+
+section {
+  padding: 3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+section:last-child {
+  border-bottom: 0;
+}
+
+article {
+  padding: 2.5rem 0;
+}
+
+article + article {
+  border-top: 1px solid var(--line);
+}
+
+.part-heading {
+  margin-bottom: 0.5rem;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+pre {
+  width: min(100%, 62rem);
+  margin: 1.5rem 0 2rem;
+  padding: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  background: transparent;
+  line-height: 1.5;
+  tab-size: 4;
+}
+
+pre code {
+  font-size: 0.82rem;
+}
+
+.equation {
+  white-space: nowrap;
+}
+
+.image-grid {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  align-items: start;
+}
+
+.image-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.image-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.image-grid--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.image-grid--five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+figure {
+  margin: 0;
+}
+
+img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.image-grid figure img {
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+}
+
+figcaption {
+  margin-top: 0.6rem;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.span-two {
+  grid-column: span 2;
+}
+
+.span-two img,
+.alpha-grid figure img {
+  aspect-ratio: auto;
+}
+
+.process-grid figure img {
+  aspect-ratio: auto;
+}
+
+.hybrid-final {
+  width: min(100%, 40rem);
+  margin: 2rem auto 0;
+}
+
+.compact-grid,
+.comparison-block,
+.wide-figure,
+.distance-demo {
+  margin-top: 2rem;
+}
+
+.comparison-block {
+  padding-top: 2rem;
+  border-top: 1px solid var(--line);
+}
+
+.comparison-block--first {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.distance-demo {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(8rem, 1fr);
+  gap: 1.5rem;
+  align-items: end;
+  max-width: 62rem;
+}
+
+.distance-demo__far {
+  justify-self: center;
+  width: min(9rem, 100%);
+}
+
+.todo,
+.todo-inline {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+details {
+  margin-top: 2rem;
+}
+
+summary {
+  cursor: pointer;
+}
+
+.wide-figure img {
+  max-height: 78rem;
+  object-fit: contain;
+  object-position: left top;
+}
+
+.gaussian-stack-figure img {
+  max-height: 32rem;
+}
+
+.process-figure img {
+  max-height: 62rem;
+}
+
+a {
+  color: var(--ink);
+}
+
+main img {
+  cursor: zoom-in;
+}
+
+main img:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 0.2rem;
+}
+
+.image-viewer {
+  max-width: 96vw;
+  max-height: 96vh;
+  margin: auto;
+  padding: 2.25rem 1rem 1rem;
+  border: 0;
+  background: transparent;
+}
+
+.image-viewer::backdrop {
+  background: rgba(0, 0, 0, 0.88);
+}
+
+.image-viewer__image {
+  display: block;
+  width: auto;
+  max-width: calc(96vw - 2rem);
+  height: auto;
+  max-height: calc(96vh - 3.25rem);
+  object-fit: contain;
+}
+
+.image-viewer__close {
+  position: absolute;
+  top: 0;
+  right: 1rem;
+  padding: 0.25rem 0;
+  border: 0;
+  background: transparent;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 1000px) {
+  .image-grid--five,
+  .image-grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  main {
+    width: min(100% - 2rem, 82rem);
+    padding-top: 2rem;
+  }
+
+  section,
+  article {
+    padding: 2rem 0;
+  }
+
+  .image-grid--two,
+  .image-grid--three,
+  .image-grid--four,
+  .image-grid--five,
+  .distance-demo {
+    grid-template-columns: 1fr;
+  }
+
+  .span-two {
+    grid-column: auto;
+  }
+
+  .image-grid figure img {
+    max-height: 34rem;
+    aspect-ratio: auto;
+  }
+
+  .distance-demo__far {
+    width: 8rem;
+  }
+
+  .equation {
+    white-space: normal;
+  }
+}
