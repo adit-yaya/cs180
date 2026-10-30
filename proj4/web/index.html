@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="CS 180 Project 4A: Image Warping and Mosaicing">
+    <title>
+      Project 4A: Image Warping and Mosaicing
+    </title>
+    <link rel="stylesheet" href="https://use.typekit.net/jon4svx.css">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <header class="page-header">
+        <h1>
+          Image Warping and Mosaicing
+        </h1>
+        <p class="lede">
+          CS 180 Project 4 — Part A
+        </p>
+        <p>
+          This project was hard!! But I enjoyed getting to mess around with looking at image warps. Homographies are interesting! It was fun to 
+          have linear algebra come into play.
+        </p>
+      </header>
+      <section id="pictures">
+        <h2>
+          A.1: Shoot the Pictures
+        </h2>
+        <p>
+          I walked around near Gateway and took pictures of nearby buildings. I also took a picture of my room when I started on the project.
+          Most of the images have a left<->right rotation between them, so I took one of a light pole where I did an up<->down rotation.
+        </p>
+        <article>
+          <h3>
+            Lightpole
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/pole1.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/pole1.jpeg" alt="Pole: image 1" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/pole2.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/pole2.jpeg" alt="Pole: image 2" loading="lazy">
+              </a>
+            </figure>
+          </div>
+        </article>
+        <article>
+          <h3>
+            VLSB
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/vlsb1.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/vlsb1.jpeg" alt="VLSB: image 1" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/vlsb2.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/vlsb2.jpeg" alt="VLSB: image 2" loading="lazy">
+              </a>
+            </figure>
+          </div>
+        </article>
+        <article>
+          <h3>
+            Li Ka Shing & Anchor House
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/anchor1.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/anchor1.jpeg" alt="Anchor: image 1" loading="lazy">
+              </a>
+              
+            </figure>
+            <figure>
+              <a href="../imgs/anchor2.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/anchor2.jpeg" alt="Anchor: image 2" loading="lazy">
+              </a>
+              
+            </figure>
+          </div>
+          
+        </article>
+        <article>
+          <h3>
+            My room
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/room1.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/room1.jpeg" alt="Room: image 1" loading="lazy">
+              </a>
+             
+            </figure>
+            <figure>
+              <a href="../imgs/room2.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/room2.jpeg" alt="Room: image 2" loading="lazy">
+              </a>
+             
+            </figure>
+          </div>
+         
+        </article>
+      </section>
+      <section id="homographies">
+        <h2>
+          A.2: Recover Homographies
+        </h2>
+        <h3>
+          System of equations
+        </h3>
+        <p>
+          For each correspondence (x1, y1) → (x2, y2), I fix h<sub>33</sub> = 1
+          and set up the following system of equations:
+        </p>
+        <pre><code>[ −x1  −y1  −1    0    0   0   x2*x1  x2*y1 ] h = −x2
+[   0    0   0  −x1  −y1  −1   y2*x1  y2*y1 ] h = −y2
+
+h = [h11, h12, h13, h21, h22, h23, h31, h32]ᵀ
+h = argmin ||Ah − b||²</code></pre>
+        <p>
+          Then, with N correspondences, I stack those two rows over and over again. 
+          I used 6 correspondence points, which makes the system overdetermined. 
+          To solve, I use for Ah = b using least squares. Then, with my 8 estimated values for H, 
+          I can reshape them into a 3x3 matrix and fill in the bottom right corner as 1. 
+        </p>
+        <h3>
+          My implementation of computeH:
+        </h3>
+        <pre><code>def computeH(im1_pts, im2_pts):
+    #a1: -x1, -y1, -1, 0, 0, 0, (x2/z2)*x1, (y2/z2)*x1
+    #a2: 0, 0, 0, -x1, -y1, -1, (y2/z2)*x1, (y2/z2)*y1
+    # solve Ah = b
+    #im1_pts: Nx2, im2_pts: Nx2
+
+    N = im1_pts.shape[0]
+    A = np.zeros((2*N, 8))
+    b = np.zeros(N*2)
+
+
+    for i in range(N):
+        x1, y1 = im1_pts[i]
+        x2, y2 = im2_pts[i]
+        A[2*i] = [-x1, -y1, -1, 0, 0, 0, x2*x1, x2*y1]
+        A[2*i+1] = [0, 0, 0, -x1, -y1, -1, y2*x1, y2*y1]
+        b[2*i] = -x2
+        b[2*i+1] = -y2
+
+    # solves Ah = 0 with linear least squares
+    h, res, rank, s = np.linalg.lstsq(A, b)
+    #reshape to 3, 3 and fill in bottom right conrer
+    H = np.append(h, 1).reshape(3, 3)
+    return H</code></pre>
+        <h3>
+          Selecting correspondences
+        </h3>
+        <p>
+          I wrote a script using plt.ginput to select correspondences and save them as arrays. I
+          mostly picked spots that were distinct corners or easy for me to remember when I had
+          to re-click them on the second image.
+        </p>
+        <article>
+          <h3>
+            VLSB correspondences
+          </h3>
+          <div class="wide-figure">
+            <figure>
+              <a href="../correspondences/vlsb.png" target="_blank" rel="noreferrer">
+                <img
+                  src="../correspondences/vlsb.png"
+                  alt="Manually selected correspondences for VLSB."
+                  loading="lazy"
+                >
+              </a>
+             
+            </figure>
+          </div>
+          <h4>
+            Recovered homography: VLSB image 1 → image 2
+          </h4>
+          <p>
+            Here is the recovered homography matrix that my code printed for the VLSB correspondences:
+          </p>
+          <pre><code>H = [[ 1.44561155, −0.00606915, −1225.48942 ],
+     [ 0.18716109,  1.28609506,  −480.43394 ],
+     [ 0.00010725,  0.00000668,     1.00000 ]]</code></pre>
+          
+        </article>
+        <article>
+          <h3>
+            Lightpole correspondences
+          </h3>
+          <div class="wide-figure">
+            <figure>
+              <a href="../correspondences/pole.png" target="_blank" rel="noreferrer">
+                <img
+                  src="../correspondences/pole.png"
+                  alt="Manually selected correspondences for Pole."
+                  loading="lazy"
+                >
+              </a>
+             
+            </figure>
+          </div>
+         
+        </article>
+        <article>
+          <h3>
+            LKS & Anchor House correspondences
+          </h3>
+          <div class="wide-figure">
+            <figure>
+              <a href="../correspondences/anchor.png" target="_blank" rel="noreferrer">
+                <img
+                  src="../correspondences/anchor.png"
+                  alt="Manually selected correspondences for Anchor."
+                  loading="lazy"
+                >
+              </a>
+     
+            </figure>
+          </div>
+        </article>
+      </section>
+      <section id="warping">
+        <h2>
+          A.3: Warp the Images
+        </h2>
+        <p>
+          I implemented image warping using inverse warping! Remembering to work with homogeneous coordinates and keep track of the difference between x and y and height and width was difficult at times. 
+          I implemented nearest-neighbor and bilinear interpolation. Nearest-neighbor interpolation fills the pixel with the value of the nearest pixel in the source image, while
+          bilinear interpolation takes a weighted average of the 4 nearest pixels, weighted based on the distance to each of those pixels. 
+          Here is my code:
+        </p>
+        <pre><code>#inverse warping
+def warpImageNearestNeighbor(im1, im2, H):
+    inv_H = np.linalg.inv(H)
+    # for each pix in im2, find the nearest pix in im1
+    h1, w1 = im1.shape[:2]
+    h, w = im2.shape[:2]
+    target = np.zeros_like(im2)
+    mask = np.zeros((h, w))
+
+    for i in range(h):
+        for j in range(w):
+            # x, y, z
+            im2_pts = np.array([j, i, 1])
+            im1_pts = inv_H @ im2_pts
+
+            # find correspodning point in im1 and unscale by z (homogeneous)
+            im1_x = round(im1_pts[0] / im1_pts[2])
+            im1_y = round(im1_pts[1] / im1_pts[2])
+
+            # grab points that actually exist
+            if 0 <= im1_x < w1 and 0 <= im1_y < h1:
+                target[i, j, :] = im1[im1_y, im1_x, :]
+                mask[i, j] = 1
+    
+    return target, mask
+
+def warpImageBilinear(im1, im2, H):
+    inv_H = np.linalg.inv(H)
+    # average adjacent neighbors in im1
+    h1, w1 = im1.shape[:2]
+    h, w = im2.shape[:2]
+    target = np.zeros_like(im2)
+    mask = np.zeros((h, w))
+
+    for i in range(h):
+        for j in range(w):
+            # x, y, z
+            im2_pts = np.array([j, i, 1])
+            im1_pts = inv_H @ im2_pts
+
+            # find correspodning point in im1 and unscale by z (homogeneous)
+            im1_x = im1_pts[0] / im1_pts[2]
+            im1_y = im1_pts[1] / im1_pts[2]
+
+            # grab points that actually exist
+            # find distance to nearest pixels and interpolate
+            if 0 <= im1_x < w1 - 1 and 0 <= im1_y < h1 - 1:
+                x1, y1 = int(np.floor(im1_x)), int(np.floor(im1_y))
+                x2, y2 = x1 + 1, y1 + 1
+
+                dx = im1_x - x1
+                dy = im1_y - y1
+
+                out = dx*dy*im1[y2, x2, :] + dx*(1-dy)*im1[y1, x2, :] + (1-dx)*dy*im1[y2, x1, :] + (1-dx)*(1-dy)*im1[y1, x1, :]
+                target[i, j, :] = out
+                mask[i, j] = 1
+    
+    return target, mask
+        </code></pre>
+        <article>
+          <h3>
+            VLSB: Nearest Neighbor vs. Bilinear
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/vlsb_nearest_neighbor.png" target="_blank" rel="noreferrer">
+                <img
+                  src="../imgs/vlsb_nearest_neighbor.png"
+                  alt="VLSB: nearest-neighbor interpolation"
+                  loading="lazy"
+                >
+              </a>
+              <figcaption>
+                VLSB: nearest-neighbor interpolation
+              </figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/vlsb_bilinear.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/vlsb_bilinear.png" alt="VLSB: bilinear interpolation" loading="lazy">
+              </a>
+              <figcaption>
+                VLSB: bilinear interpolation
+              </figcaption>
+            </figure>
+          </div>
+          
+        </article>
+        <article>
+          <h3>
+            Anchor: Nearest Neighbor vs. Bilinear
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/anchor_nearest_neighbor.png" target="_blank" rel="noreferrer">
+                <img
+                  src="../imgs/anchor_nearest_neighbor.png"
+                  alt="Anchor: nearest-neighbor interpolation"
+                  loading="lazy"
+                >
+              </a>
+              <figcaption>
+                LKS & Anchor House: nearest-neighbor interpolation
+              </figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/anchor_bilinear.png" target="_blank" rel="noreferrer">
+                <img
+                  src="../imgs/anchor_bilinear.png"
+                  alt="Anchor: bilinear interpolation"
+                  loading="lazy"
+                >
+              </a>
+              <figcaption>
+                Anchor: bilinear interpolation
+              </figcaption>
+            </figure>
+          </div>
+
+        </article>
+        <article>
+          <h3>
+            Speed and quality
+          </h3>
+          <p>
+            Generally, the quality of bilinear interpolation is better, which makes sense since it incorporates more information about the true 
+            surroundings of a pixel. However, it does take slightly longer to run, which creates the runtime vs. quality tradeoff.
+          </p>
+        </article>
+        <article>
+          <h3>
+            Rectification: Mondrian
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/mondrian.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/mondrian.jpeg" alt="Mondrian: original photograph" loading="lazy">
+              </a>
+              <figcaption>
+                Original photo in Tate Modern
+              </figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/mondrian_rectified.png" target="_blank" rel="noreferrer">
+                <img
+                  src="../imgs/mondrian_rectified.png"
+                  alt="Mondrian: existing rectification result"
+                  loading="lazy"
+                >
+              </a>
+              <figcaption>
+                Rectified to square
+              </figcaption>
+            </figure>
+          </div>
+          <p>
+           Here's a piece of art I saw in London this summer. Using my homography calculation and warping functions, I rectified it into a square!
+          </p>
+        </article>
+        <article>
+          <h3>
+            Rectification: Star Wars
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/starwars.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/starwars.jpeg" alt="Star Wars: original photograph" loading="lazy">
+              </a>
+              <figcaption>
+                My Star Wars poster, viewed from my chair
+              </figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/starwars_rectified.png" target="_blank" rel="noreferrer">
+                <img
+                  src="../imgs/starwars_rectified.png"
+                  alt="Star Wars: existing rectification result"
+                  loading="lazy"
+                >
+              </a>
+              <figcaption>
+                Square Wars
+              </figcaption>
+            </figure>
+          </div>
+          <p>
+            This is the Star Wars poster above my desk. Now it looks like Luke is going to shoot the viewer. AAAH!
+          </p>
+        </article>
+      </section>
+      <section id="mosaics">
+        <h2>
+          A.4: Blend Images into a Mosaic
+        </h2>
+        <p>
+          Finally, I took my original images and used the warping code I had to create image mosaics! All my mosaics are panoramas. 
+          
+          First I mapped the two source images onto a shared canvas. I did this by calculating the homography for one image, 
+          using the location of the warped corners and the size of the other image to create a full canvas, 
+          and then adding a translation before my warp to make sure the warped image lands fully on my canvas without getting cut off.
+
+          In order to minimize boundary effects and blend the two images together smoothly, I used distance-based blending. My warping function
+          returns a mask that identifies where there are valid image pixels. I transformed the masks to encode the distance from the boundary. 
+          This let me do a feathered averaging between the images in the regions where they overlapped when I combined everything on the canvas.
+        </p>
+        <article>
+          <h3>
+            Lightpole
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/pole1.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/pole1.jpeg" alt="Pole: source image 1" loading="lazy">
+              </a>
+              
+            </figure>
+            <figure>
+              <a href="../imgs/pole2.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/pole2.jpeg" alt="Pole: source image 2" loading="lazy">
+              </a>
+              
+            </figure>
+          </div>
+          <div class="wide-figure">
+            <figure>
+              <a href="../imgs/pole_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/pole_mosaic.png" alt="Pole: blended mosaic." loading="lazy">
+              </a>
+              <figcaption>
+                Lightpole mosaic
+              </figcaption>
+            </figure>
+          </div>
+          
+        </article>
+        <article>
+          <h3>
+            Mosaic 2: VLSB
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/vlsb1.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/vlsb1.jpeg" alt="VLSB: source image 1" loading="lazy">
+              </a>
+             
+            </figure>
+            <figure>
+              <a href="../imgs/vlsb2.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/vlsb2.jpeg" alt="VLSB: source image 2" loading="lazy">
+              </a>
+              
+            </figure>
+          </div>
+          <div class="wide-figure">
+            <figure>
+              <a href="../imgs/vlsb_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/vlsb_mosaic.png" alt="VLSB: blended mosaic." loading="lazy">
+              </a>
+              <figcaption>
+                VLSB mosaic
+              </figcaption>
+            </figure>
+          </div>
+          
+        </article>
+        <article>
+          <h3>
+            Mosaic 3: LKS & Anchor House
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/anchor1.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/anchor1.jpeg" alt="Anchor: source image 1" loading="lazy">
+              </a>
+            
+            </figure>
+            <figure>
+              <a href="../imgs/anchor2.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/anchor2.jpeg" alt="Anchor: source image 2" loading="lazy">
+              </a>
+             
+            </figure>
+          </div>
+          <div class="wide-figure">
+            <figure>
+              <a href="../imgs/anchor_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/anchor_mosaic.png" alt="Anchor: blended mosaic." loading="lazy">
+              </a>
+              <figcaption>
+                LKS & Anchor house mosaic
+              </figcaption>
+            </figure>
+          </div>
+         
+        </article>
+        <article>
+          <h3>
+            Mosaic 4: My Room
+          </h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/room1.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/room1.jpeg" alt="Room: source image 1" loading="lazy">
+              </a>
+              
+            </figure>
+            <figure>
+              <a href="../imgs/room2.jpeg" target="_blank" rel="noreferrer">
+                <img src="../imgs/room2.jpeg" alt="Room: source image 2" loading="lazy">
+              </a>
+            
+            </figure>
+          </div>
+          <div class="wide-figure">
+            <figure>
+              <a href="../imgs/room_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/room_mosaic.png" alt="Room: blended mosaic." loading="lazy">
+              </a>
+              <figcaption>
+                Room mosaic
+              </figcaption>
+            </figure>
+          </div>
+          
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
