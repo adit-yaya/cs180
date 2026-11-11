@@ -348,3 +348,22 @@ main img:focus-visible {
 table { border-collapse: collapse; width: min(100%, 62rem); margin: 1.5rem 0; }
 th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--line); font-weight: 400; }
 .section-nav { font-size: 0.9rem; }
+
+.descriptor-grid {
+  gap: 0;
+}
+
+@media (max-width: 700px) {
+  .descriptor-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .descriptor-grid--pairs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mosaic-comparison {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}

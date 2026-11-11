@@ -13,14 +13,19 @@
   <body>
     <main>
       <header class="page-header">
+        <nav aria-label="Project sections">
+          <a href="#part-b">Jump to Part B</a>
+        </nav>
         <h1>
           Image Warping and Mosaicing
         </h1>
         <p class="lede">
-          CS 180 Project 4 — Part A
+          CS 180 Project 4
         </p>
         <p>
-          This project was hard!! But I enjoyed getting to mess around with looking at image warps. Homographies are interesting! It was fun to 
+          Part A <br> <br>
+
+          Part A of this project was hard!! But I enjoyed getting to mess around with looking at image warps. Homographies are interesting! It was fun to 
           have linear algebra come into play.
         </p>
       </header>
@@ -561,6 +566,641 @@ def warpImageBilinear(im1, im2, H):
           </div>
           
         </article>
+      </section>
+
+      <section id="part-b" aria-labelledby="harris-heading">
+        <header class="page-header">
+          <h2>Part B: Feature Matching for Autostitching</h2>
+        </header>
+        <p> Part B was also very fun! The objective of part B is to implement an automatic feature
+          matching protocol for image stitching and mosaic generation. The approach was a simplified version
+          of the methods described in 
+          <a href="https://cal-cs180.github.io/fa26/hw/proj3/Papers/MOPS.pdf">Multi-Image Matching using Multi-Scale Oriented Patches.</a>
+          It was pretty enjoyable to translate from the paper to actual
+          runnable code. I found that I ended up writing some very pretty code, especially for ANMS and RANSAC!
+        <h2 id="harris-heading">B.1: Harris Corner Detection</h2>
+        <p>A first idea is to match corners between images, since corners often define object boundaries and can describe
+          distinct, recognizable locations that we want to align when our images are stitched together. To do so, I used the Harris
+          corner detection algorithm (or at least, the provided implementation). The Harris algorithm works by taking the gradient 
+          at each point in the image and searching for points where there are rapid changes in all directions. Intuitively, these points
+          are likely to correspond to corners! Here's what that looks like. 
+        </p>
+        <article>
+          <h3>LKS &amp; Anchor House</h3>
+          <h4>Original Harris corners</h4>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/part_b/im1_harris.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/im1_harris.png"
+                  alt="LKS &amp; Anchor House, image 1: Harris corners" loading="lazy">
+              </a>
+              <figcaption>Image 1</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/im2_harris.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/im2_harris.png"
+                  alt="LKS &amp; Anchor House, image 2: Harris corners" loading="lazy">
+              </a>
+              <figcaption>Image 2</figcaption>
+            </figure>
+          </div>
+          <p> It turns out that the Harris algorithm gives us a lot of "corners" that aren't actually corners, and we also might
+            end up with corners that are densely packed into one region of the image if we just pick the top K corners to work with. 
+            To remedy this, I implemented Adaptive Non-Maximal Suppression as described in the MOPS paper. ANMS works by finding an 
+            effective "maximum radius" for each point. This radius describes the size of the region surrounding the point in which 
+            the point is the most corner-like. I liked to think of it as the "territory" claimed by a point, if the size of a point's 
+            territory is defined by how much more corner-like it is than surrounding points. Then, we pick the top K corners with the largest
+            territories! Here's how that looks. Now, we have nicely spaced out corners covering the whole image! For this image, I 
+            used K = 500. 
+          <h4>After ANMS</h4>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/part_b/im1_anms.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/im1_anms.png"
+                  alt="LKS &amp; Anchor House, image 1: Harris corners after ANMS" loading="lazy">
+              </a>
+              <figcaption>Image 1</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/im2_anms.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/im2_anms.png"
+                  alt="LKS &amp; Anchor House, image 2: Harris corners after ANMS" loading="lazy">
+              </a>
+              <figcaption>Image 2</figcaption>
+            </figure>
+          </div>
+        </article>
+        <p>Here are the same results but for two views of my room instead. For this I used K=250.</p>
+        <article>
+          <h3>My room</h3>
+          <h4>Original Harris corners</h4>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/part_b/room1_harris.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room1_harris.png"
+                  alt="My room, image 1: Harris corners" loading="lazy">
+              </a>
+              <figcaption>Image 1</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/room2_harris.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room2_harris.png"
+                  alt="My room, image 2: Harris corners" loading="lazy">
+              </a>
+              <figcaption>Image 2</figcaption>
+            </figure>
+          </div>
+          <h4>After ANMS</h4>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/part_b/room1_anms.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room1_anms.png"
+                  alt="My room, image 1: Harris corners after ANMS" loading="lazy">
+              </a>
+              <figcaption>Image 1</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/room2_anms.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room2_anms.png"
+                  alt="My room, image 2: Harris corners after ANMS" loading="lazy">
+              </a>
+              <figcaption>Image 2</figcaption>
+            </figure>
+          </div>
+        </article>
+      </section>
+      <section id="feature-descriptors">
+        <h2>B.2: Feature Descriptor Extraction</h2>
+        Once we have our corners from ANMS, we want to build a meaningful feature out of them that we can use to compare
+        two images. Single points alone are very hard to map between images. The strategy introduced by MOPS is to construct
+        a feature that describes the general structure of the surroundings of the corner. Intuitively, two corresponding corners
+        in two different images are going to have surroundings that are very similar. <br><br>
+
+        To construct the features, I start by grabbing a 40x40 region around each ANMS corner. Then, I gaussian blur this image patch
+        and sample it at an interval of every 5 pixels to create an 8x8 feature. The blurring is to ensure that there is no aliasing
+        when we do the subsampling. This construction allows us to describe the general neighborhood of a corner, which is more robust 
+        to noise or small fluctuations between images compared to the direct 8x8 surroundings. <br><br>
+
+        Here are the features extracted from the LKS & Anchor House image. It's cool to me that you can see the corner-like structure
+        in most of them. 
+        <div class="image-grid image-grid--five descriptor-grid">
+          <figure>
+            <a href="../imgs/part_b/feat_0.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_0.png"
+                alt="Normalized 8 × 8 feature descriptor 1" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_1.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_1.png"
+                alt="Normalized 8 × 8 feature descriptor 2" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_2.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_2.png"
+                alt="Normalized 8 × 8 feature descriptor 3" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_3.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_3.png"
+                alt="Normalized 8 × 8 feature descriptor 4" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_4.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_4.png"
+                alt="Normalized 8 × 8 feature descriptor 5" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_5.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_5.png"
+                alt="Normalized 8 × 8 feature descriptor 6" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_6.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_6.png"
+                alt="Normalized 8 × 8 feature descriptor 7" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_7.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_7.png"
+                alt="Normalized 8 × 8 feature descriptor 8" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_8.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_8.png"
+                alt="Normalized 8 × 8 feature descriptor 9" loading="lazy">
+            </a>
+          </figure>
+          <figure>
+            <a href="../imgs/part_b/feat_9.png" target="_blank" rel="noreferrer">
+              <img src="../imgs/part_b/feat_9.png"
+                alt="Normalized 8 × 8 feature descriptor 10" loading="lazy">
+            </a>
+          </figure>
+        </div>
+      </section>
+      <section id="feature-matching">
+        <h2>B.3: Feature Matching</h2>
+        Here comes the fun stuff. Now I have a way to describe features of interest in two images, and I have to actually map between them. 
+        The core idea is a nearest-neighbors search: for a feature in one image, find the most similar feature in the other!
+        However, we find that this doesn't always work too well in practice, since some features may not correspond very 
+        strongly with any features in the other image. 
+
+        The MOPS paper handles this by instead keeping corners for which the ratio  (distance_to_nearest_neighbor / distance_to_second_nearest_neighbor) < epsilon,
+        for some epsilon. The idea is that matching features will match very closely with each other and not very well with other features, 
+        so this ratio will be very small for true matches. Consulting the figures from the paper, I set this threshold to be
+        in between 0.5 to 0.7, depending on the image, in order to maximize the number of true matches selected and minimize the number of 
+        false matches kept. 
+
+        <br><br>
+        Here are the matched corners for LKS and my room, along with the matched features. The algorithm is doing a great job at finding close matches!
+        It's easy to see that the matches are in the same location in the image and have almost identical features, as hypothesized. 
+
+        <article>
+          <h3>LKS &amp; Anchor House</h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/part_b/im1_feat_pair_corners.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/im1_feat_pair_corners.png"
+                  alt="LKS &amp; Anchor House, image 1, with candidate feature matches marked" loading="lazy">
+              </a>
+              <figcaption>Image 1: match corners</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/im2_feat_pair_corners.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/im2_feat_pair_corners.png"
+                  alt="LKS &amp; Anchor House, image 2, with candidate feature matches marked" loading="lazy">
+              </a>
+              <figcaption>Image 2: match corners</figcaption>
+            </figure>
+          </div>
+          <h4>Matched feature descriptor pairs</h4>
+          <div class="image-grid image-grid--five descriptor-grid descriptor-grid--pairs">
+            <figure>
+              <a href="../imgs/part_b/feat_pair_0.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_0.png"
+                  alt="Pair 1: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_1.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_1.png"
+                  alt="Pair 2: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_2.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_2.png"
+                  alt="Pair 3: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_3.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_3.png"
+                  alt="Pair 4: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_4.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_4.png"
+                  alt="Pair 5: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_5.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_5.png"
+                  alt="Pair 6: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_6.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_6.png"
+                  alt="Pair 7: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_7.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_7.png"
+                  alt="Pair 8: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_8.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_8.png"
+                  alt="Pair 9: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_9.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_9.png"
+                  alt="Pair 10: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+          </div>
+        </article>
+        <article>
+          <h3>My room</h3>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/part_b/room1_feat_pair_corners.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room1_feat_pair_corners.png"
+                  alt="My room, image 1, with candidate feature matches marked" loading="lazy">
+              </a>
+              <figcaption>Image 1: match corners</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/room2_feat_pair_corners.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room2_feat_pair_corners.png"
+                  alt="My room, image 2, with candidate feature matches marked" loading="lazy">
+              </a>
+              <figcaption>Image 2: match corners</figcaption>
+            </figure>
+          </div>
+          <h4>Matched feature descriptor pairs</h4>
+          <div class="image-grid image-grid--five descriptor-grid descriptor-grid--pairs">
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room0.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room0.png"
+                  alt="My room, pair 1: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room1.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room1.png"
+                  alt="My room, pair 2: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room2.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room2.png"
+                  alt="My room, pair 3: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room3.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room3.png"
+                  alt="My room, pair 4: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room4.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room4.png"
+                  alt="My room, pair 5: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room5.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room5.png"
+                  alt="My room, pair 6: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room6.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room6.png"
+                  alt="My room, pair 7: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room7.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room7.png"
+                  alt="My room, pair 8: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room8.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room8.png"
+                  alt="My room, pair 9: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/feat_pair_room9.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/feat_pair_room9.png"
+                  alt="My room, pair 10: two matched 8 × 8 feature descriptors" loading="lazy">
+              </a>
+            </figure>
+          </div>
+        </article>
+      </section>
+      <section id="ransac">
+        <h2>B.4: RANSAC for Robust Homography</h2>
+        We are done!!! <br><br>
+
+        Actually not quite. Awh man. It turns out that the feature matching procedure is still not perfect and can often give
+        bad/incorrect matches. It's always possible to have corners which have high feature similarity but are spatially disjoint
+        if the image has repeated or uniform structure. <br><br>
+
+        The final step before calculating the homography and making the mosaic is RANSAC, or Random Sample Consensus. 
+        The idea was best described by Prof. Efros in lecture (and Tolstoy before him): "All happy families are alike; each unhappy family
+        is unhappy in its own way." With our potential matches, we will have "happy family" points which all relate to each other in the same way
+        (meaning they are all related by the same homography). The "unhappy family" points are the outliers, which are related through completely
+        different and often meaningless homographies. 
+        <br><br>
+        To find the outliers, we sample 4 matches at random. We calculate the homography using these 8 points, then apply it to every single potential match. 
+        We count the number of corners that, after transformed, are within an error epsilon of their predicted match (these are the inliers). We do this for K steps, and at the end of
+        every step, we store the size of the largest set of inliers and the inliers themselves. Hopefully, at the end, we now have a set of all the inliers! We've now
+        filtered out the outliers succesfuly and can re-calculate our final homography using least squares on our set of inliers. Ta-da!! Now we are actually done and can 
+        stitch our images. 
+        <br><br>
+        Here are my potential matches alongside the inliers found by RANSAC. I set my epsilon to values ranging between 1 and 3, depending on the image. 
+        For these small values, we often have corners which are actually inliers counted as outliers by the algorithm. In practice, this is fine, 
+        since it means these matches are just not as good as other matches, and when solving our least squares system for our homography, we will want to use only the best matches. 
+          <br>
+          <h4>LKS &amp; Anchor House: Inliers in RED, Outliers in YELLOW</h4>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/part_b/im1_ransac.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/im1_ransac.png"
+                  alt="LKS &amp; Anchor House, image 1: RANSAC inliers in green and rejected matches in red" loading="lazy">
+              </a>
+              
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/im2_ransac.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/im2_ransac.png"
+                  alt="LKS &amp; Anchor House, image 2: RANSAC inliers in green and rejected matches in red" loading="lazy">
+              </a>
+              
+            </figure>
+          </div>
+          <h4>My room: Inliers in GREEN, Outliers in RED</h4>
+          <div class="image-grid image-grid--two">
+            <figure>
+              <a href="../imgs/part_b/room1_ransac.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room1_ransac.png"
+                  alt="My room, image 1: RANSAC inliers in green and rejected matches in red" loading="lazy">
+              </a>
+              
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/room2_ransac.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room2_ransac.png"
+                  alt="My room, image 2: RANSAC inliers in green and rejected matches in red" loading="lazy">
+              </a>
+            
+            </figure>
+          </div>
+        </article>
+      </section>
+      <section id="final-mosaics">
+        <h2>Final Mosaics</h2>
+        Now I'm actually done!! To calculate the final mosaics I reused my code from part a, using bilinear interpolation
+        for inverse warping. 
+        <article>
+          <h3>LKS &amp; Anchor House</h3>
+          <div class="wide-figure">
+            <figure>
+              <a href="../imgs/part_b/anchor_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/anchor_mosaic.png"
+                  alt="LKS &amp; Anchor House: automatically stitched mosaic" loading="lazy">
+              </a>
+            </figure>
+          </div>
+        </article>
+        <article>
+          <h3>My room</h3>
+          <div class="wide-figure">
+            <figure>
+              <a href="../imgs/part_b/room_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room_mosaic.png"
+                  alt="My room: automatically stitched mosaic" loading="lazy">
+              </a>
+            </figure>
+          </div>
+        </article>
+        <article>
+          <h3>VLSB</h3>
+          <div class="wide-figure">
+            <figure>
+              <a href="../imgs/part_b/vlsb_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/vlsb_mosaic.png"
+                  alt="VLSB: automatically stitched mosaic" loading="lazy">
+              </a>
+            </figure>
+          </div>
+        </article>
+        <article>
+          <h3>Lightpole</h3>
+          <div class="wide-figure">
+            <figure>
+              <a href="../imgs/part_b/pole_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/pole_mosaic.png"
+                  alt="Lightpole: automatically stitched mosaic" loading="lazy">
+              </a>
+            </figure>
+          </div>
+        </article>
+      </section>
+      <section id="stitch-comparisons">
+        <h2>Automatic vs. Manual Stitching</h2>
+        Let's see what all that work actually got me. Here are comparisons of my part a mosaics, which 
+        were done with manual correspondence selection, with my automated part b mosaics. I zoomed into regions
+        with details for closer comparison.
+        <article>
+          <h3>VLSB</h3>
+          <div class="image-grid image-grid--two mosaic-comparison">
+            <figure>
+              <a href="../imgs/part_b/vlsb_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/vlsb_mosaic.png"
+                  alt="VLSB: automatically stitched mosaic" loading="lazy">
+              </a>
+              <figcaption>Automatic stitch</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/vlsb_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/vlsb_mosaic.png"
+                  alt="VLSB: manually stitched mosaic" loading="lazy">
+              </a>
+              <figcaption>Manual stitch</figcaption>
+            </figure>
+          </div>
+          <div class="image-grid image-grid--two mosaic-comparison">
+            <figure>
+              <a href="../imgs/part_b/center_crops/vlsb_automatic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/center_crops/vlsb_automatic.png"
+                  alt="VLSB: zoomed center of the automatic stitch" loading="lazy">
+              </a>
+              <figcaption>Automatic, detail crop</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/center_crops/vlsb_manual.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/center_crops/vlsb_manual.png"
+                  alt="VLSB: zoomed center of the manual stitch" loading="lazy">
+              </a>
+              <figcaption>Automatic, detail crop</figcaption>
+            </figure>
+          </div>
+          <p>Looks like the work was worth it! The difference is pretty minimal, but the detail in the trees is 
+            definitely clearer and less blurry with the automatic stitch.
+          </p>
+           
+        </article>
+        <article>
+          <h3>LKS &amp; Anchor House</h3>
+          <div class="image-grid image-grid--two mosaic-comparison">
+            <figure>
+              <a href="../imgs/part_b/anchor_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/anchor_mosaic.png"
+                  alt="LKS &amp; Anchor House: automatically stitched mosaic" loading="lazy">
+              </a>
+              <figcaption>Automatic stitch</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/anchor_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/anchor_mosaic.png"
+                  alt="LKS &amp; Anchor House: manually stitched mosaic" loading="lazy">
+              </a>
+              <figcaption>Manual stitch</figcaption>
+            </figure>
+          </div>
+          <div class="image-grid image-grid--two mosaic-comparison">
+            <figure>
+              <a href="../imgs/part_b/center_crops/anchor_automatic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/center_crops/anchor_automatic.png"
+                  alt="LKS &amp; Anchor House: zoomed lower-right detail of the automatic stitch" loading="lazy">
+              </a>
+              <figcaption>Automatic, detail crop</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/center_crops/anchor_manual.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/center_crops/anchor_manual.png"
+                  alt="LKS &amp; Anchor House: zoomed lower-right detail of the manual stitch" loading="lazy">
+              </a>
+              <figcaption>Manual, detail crop</figcaption>
+            </figure>
+          </div>
+          <p>Again, the automatic stitch is much less blurry in the trees and overall does a better job at putting the two images together.</p>
+        </article>
+        <article>
+          <h3>My room</h3>
+          <div class="image-grid image-grid--two mosaic-comparison">
+            <figure>
+              <a href="../imgs/part_b/room_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/room_mosaic.png"
+                  alt="My room: automatically stitched mosaic" loading="lazy">
+              </a>
+              <figcaption>Automatic stitch</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/room_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/room_mosaic.png"
+                  alt="My room: manually stitched mosaic" loading="lazy">
+              </a>
+              <figcaption>Manual stitch</figcaption>
+            </figure>
+          </div>
+          <div class="image-grid image-grid--two mosaic-comparison">
+            <figure>
+              <a href="../imgs/part_b/center_crops/room_automatic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/center_crops/room_automatic.png"
+                  alt="My room: zoomed lower-right detail of the automatic stitch" loading="lazy">
+              </a>
+              <figcaption>Automatic, detail crop</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/center_crops/room_manual.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/center_crops/room_manual.png"
+                  alt="My room: zoomed lower-right detail of the manual stitch" loading="lazy">
+              </a>
+              <figcaption>Manual, detail crop</figcaption>
+            </figure>
+          </div>
+          <p>Automatic wins again! Look at the detail in the headrest on my chair. It's slightly crisper with the automatic.
+          </p>
+        </article>
+        <article>
+          <h3>Lightpole</h3>
+          <div class="image-grid image-grid--two mosaic-comparison">
+            <figure>
+              <a href="../imgs/part_b/pole_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/pole_mosaic.png"
+                  alt="Lightpole: automatically stitched mosaic" loading="lazy">
+              </a>
+              <figcaption>Automatic stitch</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/pole_mosaic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/pole_mosaic.png"
+                  alt="Lightpole: manually stitched mosaic" loading="lazy">
+              </a>
+              <figcaption>Manual stitch</figcaption>
+            </figure>
+          </div>
+          <div class="image-grid image-grid--two mosaic-comparison">
+            <figure>
+              <a href="../imgs/part_b/center_crops/pole_automatic.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/center_crops/pole_automatic.png"
+                  alt="Lightpole: zoomed center of the automatic stitch" loading="lazy">
+              </a>
+              <figcaption>Automatic, detail crop</figcaption>
+            </figure>
+            <figure>
+              <a href="../imgs/part_b/center_crops/pole_manual.png" target="_blank" rel="noreferrer">
+                <img src="../imgs/part_b/center_crops/pole_manual.png"
+                  alt="Lightpole: zoomed center of the manual stitch" loading="lazy">
+              </a>
+              <figcaption>Manual, detail crop</figcaption>
+            </figure>
+          </div>
+          <p>Awh man. It actually seems like the manual one did better here! But this just means the automatic 
+            approach can be improved. There were a lot of thresholds and parameters I chose in every single step of the pipeline,
+            and it's possible that different choices would have led to a cleaner projection. The method I implemented
+            is also currently only single scale, not multi-scale as advertised, and is not oriented (also not as advertised),
+            while the MOPS paper includes these features (along with a few other interesting ideas). My guess is that including
+            some of these bells and whistles will take the automatic stitching far beyond any manual approaches. 
+          </p>
+        </article>
+
+        That's a wrap on the last individual project for this class! I honestly really liked this project, even though it was the one 
+        I had the hardest time with personally. Getting to see ANMS sparsify the corners and look at clean feature maps was incredibly 
+        rewarding after struggling with turning the paper's algorithm descriptions into code. This was a very useful exploration of 
+        homographies, projective transforms, and image warping, and I hope I'll get to use some of these ideas again!
       </section>
     </main>
   </body>
